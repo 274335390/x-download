@@ -85,7 +85,12 @@ function paintDownloads(id){document.querySelectorAll('[data-download-id]').forE
 function render(){
   const items=currentPost.media,grid=$('#media-grid');grid.replaceChildren();$('#download-all').hidden=items.length<2;
   bindDownload($('#download-all'),'allZip',{},'download',items.map(item=>item.index),'original',0,currentPost);
-  const meta=$('#post-meta');meta.replaceChildren();if(currentPost.avatar){const avatar=el('img','author-avatar');avatar.src=currentPost.avatar;avatar.alt='';avatar.onerror=()=>avatar.remove();meta.append(avatar);}const copy=el('div','post-copy'),author=el('strong','',currentPost.author||'X'),description=el('p','',String(currentPost.title).replace(/\r\n?/g,'\n').replace(/\n[\t ]*\n+/g,'\n'));author.dir='auto';description.dir='auto';description.id='post-text';
+  const meta=$('#post-meta');meta.replaceChildren();if(currentPost.avatar){const avatar=el('img','author-avatar');avatar.src=currentPost.avatar;avatar.alt='';avatar.onerror=()=>avatar.remove();meta.append(avatar);}
+  const handle=String(currentPost.handle||'').replace(/^@/,'');
+  const copy=el('div','post-copy'),author=el(/^[A-Za-z0-9_]{1,15}$/.test(handle)?'a':'strong','post-author',currentPost.author||'X'),description=el('p');
+  if(author.tagName==='A'){author.href='https://x.com/'+encodeURIComponent(handle);author.target='_blank';author.rel='noopener noreferrer';}
+  const postLink=el('a','post-link',String(currentPost.title).replace(/\r\n?/g,'\n').replace(/\n[\t ]*\n+/g,'\n'));postLink.href='https://x.com/i/status/'+encodeURIComponent(currentPost.id);postLink.target='_blank';postLink.rel='noopener noreferrer';description.append(postLink);
+  author.dir='auto';description.dir='auto';description.id='post-text';
   const expand=button('expandPost','post-toggle',()=>{const expanded=description.classList.toggle('expanded');expand.setAttribute('aria-expanded',String(expanded));label(expand.querySelector('span'),expanded?'collapsePost':'expandPost');});expand.hidden=true;expand.setAttribute('aria-expanded','false');expand.setAttribute('aria-controls','post-text');copy.append(author,description,expand);meta.append(copy);
   requestAnimationFrame(()=>{if(description.isConnected)expand.hidden=description.scrollHeight<=description.clientHeight+1;});
   items.forEach(item=>{

@@ -100,7 +100,9 @@ dialog p{font-size:13px;color:var(--muted)}
 .dialog-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;min-width:0}
 .download-dialog .dialog-top>h2{flex-shrink:0}
 .post-meta{display:flex;gap:12px;align-items:flex-start;margin:0 0 20px}
-.post-meta strong{font-size:13px}
+.post-author{font-size:13px;font-weight:650}
+.post-author:hover{color:var(--green);text-decoration:underline;text-underline-offset:3px}
+.post-link:hover{color:var(--green)}
 .post-meta p{font-size:12px;line-height:1.7;color:var(--muted);margin:6px 0 0;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .post-meta p.expanded{display:block;-webkit-line-clamp:unset}
 .post-toggle{display:block;border:0;background:none;color:var(--green);font-size:12px;padding:5px 0;margin-top:2px;text-align:start;min-height:32px}
@@ -212,7 +214,7 @@ dialog{padding:20px}
 
 .post-copy{flex:1;text-align:start}
 
-.post-copy strong{display:inline-block;unicode-bidi:isolate}
+.post-author{display:inline-block;unicode-bidi:isolate}
 
 .post-copy p{text-align:start}
 
