@@ -175,7 +175,7 @@ dialog{padding:20px}
 .input-wrap input{flex:1}
 
 
-.media-controls{min-width:0}
+.media-controls{min-width:0;width:100%;max-width:240px;align-self:flex-end}
 .media-controls .extra-actions{margin-top:7px}
 
 .nav>a,.nav>.plain{position:relative;transition:color .18s,transform .18s}
@@ -254,7 +254,7 @@ dialog{padding:20px}
 
 #rights-dialog{max-width:490px}
 #rights-dialog .dialog-top{margin-bottom:12px}
-#rights-dialog .rights-action{font-size:12px;font-weight:650;color:var(--green);margin:0 0 12px}
+
 #rights-dialog #rights-copy{line-height:1.85;margin:0 0 20px}
 .rights-check{display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;background:var(--mint);border-radius:10px;padding:14px;line-height:1.7}
 .rights-check input{width:17px;height:17px;flex-shrink:0;margin:3px 0 0;accent-color:var(--green)}

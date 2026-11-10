@@ -65,7 +65,7 @@ function bindDownload(node,key,values,iconName,indices,mode,quality,post){
   const id=[post.id,indices.join('-'),mode,quality].join('_');
   node.classList.add('download-action');node.dataset.downloadId=id;
   node.dataset.actionKey=key;node.dataset.actionValues=JSON.stringify(values);node.dataset.actionIcon=iconName||'download';
-  node.onclick=()=>startDownload(indices,mode,quality,post,id,t(key,values));
+  node.onclick=()=>startDownload(indices,mode,quality,post,id);
   paintDownload(node,downloads.get(id));return node;
 }
 function downloadButton(key,cls,indices,mode,quality,post,values={},iconName){return bindDownload(button(key,cls,()=>{},values,iconName),key,values,iconName,indices,mode,quality,post);}
@@ -108,9 +108,9 @@ async function save(job,transfer){
   let blob;try{blob=await response.blob();}catch{throw Error('downloadError');}const state=await api('jobs/'+job.id);if(state.status!=='done')throw Error(state.message||'downloadError');
   const url=URL.createObjectURL(blob),a=el('a');a.href=url;a.download=job.filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);transfer.message='browserSaved';transfer.values={name:job.filename};return true;
 }
-async function startDownload(indices,output,quality,post,id,action){
+async function startDownload(indices,output,quality,post,id){
   if(!post||downloads.get(id)?.active)return;
-  if(!await confirmMediaDownload(action))return;
+  if(!await confirmMediaDownload())return;
   const state={active:true,message:'creating',values:{},progress:4};downloads.set(id,state);paintDownloads(id);
   const started=performance.now(),animation=setInterval(()=>{
     state.progress=Math.max(state.progress,4+84*(1-Math.exp(-(performance.now()-started)/24000)));
@@ -127,9 +127,9 @@ async function startDownload(indices,output,quality,post,id,action){
 }
 const rightsDialog=$('#rights-dialog');
 $('#rights-check').onchange=()=>{$('#rights-confirm').disabled=!$('#rights-check').checked;};
-function confirmMediaDownload(action){
+function confirmMediaDownload(){
   if(rightsDialog.open)return Promise.resolve(false);
-  $('#rights-action').textContent=action;$('#rights-check').checked=false;$('#rights-confirm').disabled=true;rightsDialog.returnValue='';
+  $('#rights-check').checked=false;$('#rights-confirm').disabled=true;rightsDialog.returnValue='';
   return new Promise(resolve=>{rightsDialog.addEventListener('close',()=>resolve(rightsDialog.returnValue==='confirm'&&$('#rights-check').checked),{once:true});rightsDialog.showModal();});
 }
 const legalDialog=$('#legal-dialog');
@@ -137,7 +137,7 @@ function renderLegal(){
   const title=$('#legal-title'),copy=$('#legal-copy');copy.replaceChildren();
   if(legalName==='about'){
     delete title.dataset.i18n;delete title.dataset.values;
-    title.textContent='东东下载'+(config.desktop?' · '+(config.version||'1.0.0'):'');
+    title.textContent='东东下载'+(config.desktop?' · '+(config.version||'1.0.1'):'');
   }else label(title,legalName);
   LOCALES[language].legal[legalName].forEach(text=>copy.append(el('p','',text)));
   if(legalName==='privacy'&&config.desktop)copy.append(label(el('p'),'updatePrivacy'));

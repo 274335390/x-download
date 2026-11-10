@@ -28,7 +28,7 @@ from waitress import create_server
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 HOME = Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else ROOT
 TOKEN = secrets.token_urlsafe(32)
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 MAX_BYTES = 256 * 1024 * 1024
 TTL = 30 * 60
 POSTS: dict = {}
@@ -52,7 +52,7 @@ class UserError(Exception):
 def get(url, **kwargs):
     if PROXY:
         kwargs['proxies'] = {'http': PROXY, 'https': PROXY}
-    return requests.get(url, timeout=(12, 35), headers={'User-Agent': 'Dongdong/1.0.0'}, **kwargs)
+    return requests.get(url, timeout=(12, 35), headers={'User-Agent': 'Dongdong/1.0.1'}, **kwargs)
 
 
 def media_url(value):

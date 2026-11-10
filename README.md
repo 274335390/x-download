@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://x.dd-oss.com/">在线演示</a> ·
   <a href="https://x.dd-oss.com/download/windows">Windows 下载</a> ·
-  <a href="https://github.com/274335390/x-download/releases/tag/v1.0.0">1.0.0 发布说明</a> ·
+  <a href="https://github.com/274335390/x-download/releases/tag/v1.0.1">1.0.1 发布说明</a> ·
   <a href="https://github.com/274335390/x-download/issues">问题反馈</a> ·
   <a href="LICENSE">MIT License</a>
 </p>
@@ -28,7 +28,7 @@
 
 Windows 用户可下载 `Dongdong.exe`，双击运行。适用于 Windows 10/11（64 位）；独立窗口使用 Microsoft Edge WebView2 Runtime，多数较新 Windows 已安装。无需另装 Python 或 FFmpeg。桌面版仅在用户点击“检查更新”时检查版本，不强制更新。
 
-当前 EXE 尚未进行代码签名，首次下载可能出现 Edge / SmartScreen 信誉提示。请从本站或正式 [GitHub Release](https://github.com/274335390/x-download/releases/tag/v1.0.0) 获取，并用发布页的 SHA-256 校验文件一致性。校验值不等于代码签名，也不能保证安全；出现具体病毒告警时应停止运行并反馈。
+当前 EXE 尚未进行代码签名，首次下载可能出现 Edge / SmartScreen 信誉提示。请从本站或正式 [GitHub Release](https://github.com/274335390/x-download/releases/tag/v1.0.1) 获取，并用发布页的 SHA-256 校验文件一致性。校验值不等于代码签名，也不能保证安全；出现具体病毒告警时应停止运行并反馈。
 
 ## 本地运行
 
