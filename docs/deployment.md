@@ -49,6 +49,8 @@ python app.py --web --proxy http://127.0.0.1:7890
 
 在 Windows x64 上准备 Python 虚拟环境和 FFmpeg：
 
+使用 python.org 的标准 Python 发行版创建虚拟环境；不要把编辑器专用的 Python 运行时打入发布包。需要其他虚拟环境时，可通过 `build.ps1 -PythonPath <python.exe>` 指定。
+
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-desktop.txt
 .\build.ps1 -FFmpegPath C:\path\to\ffmpeg.exe
@@ -60,7 +62,7 @@ python app.py --web --proxy http://127.0.0.1:7890
 
 仅在“关于”中点击“检查更新”时请求版本信息，不自动安装或强制更新。
 
-`updates.json` 配置官网版本清单和 GitHub 备用来源。当前使用 `274335390/x-download` 的正式 Releases，标签为 `v0.1.1` 这样的三段版本号，发布附件需包含 `Dongdong.exe` 或 `Dongdong-Windows.zip`。没有 Release 时会明确提示，网络错误不会显示为“已是最新版”。
+`updates.json` 配置官网版本清单和 GitHub 备用来源。当前使用 `274335390/x-download` 的正式 Releases，标签为 `v1.0.0` 这样的三段版本号，发布附件需包含 `Dongdong.exe` 或 `Dongdong-Windows.zip`。没有 Release 时会明确提示，网络错误不会显示为“已是最新版”。
 
 官网清单支持 `version` 与 HTTPS `url` 字段。更新检查不上传帖子链接或下载历史。
 

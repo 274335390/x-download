@@ -7,3 +7,17 @@ vendor/
 *.log
 donate/wechat.*
 donate/binance.*
+
+# Local credentials and personal configuration never belong in source releases.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.pfx
+*.p12
+cookies.txt
+cookies.*.txt
+credentials*.json
+secrets/
+.ssh/

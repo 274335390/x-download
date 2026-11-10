@@ -28,7 +28,7 @@ from waitress import create_server
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 HOME = Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else ROOT
 TOKEN = secrets.token_urlsafe(32)
-VERSION = '0.1.1'
+VERSION = '1.0.0'
 MAX_BYTES = 256 * 1024 * 1024
 TTL = 30 * 60
 POSTS: dict = {}
@@ -52,7 +52,7 @@ class UserError(Exception):
 def get(url, **kwargs):
     if PROXY:
         kwargs['proxies'] = {'http': PROXY, 'https': PROXY}
-    return requests.get(url, timeout=(12, 35), headers={'User-Agent': 'Dongdong/0.1'}, **kwargs)
+    return requests.get(url, timeout=(12, 35), headers={'User-Agent': 'Dongdong/1.0.0'}, **kwargs)
 
 
 def media_url(value):
@@ -645,7 +645,7 @@ def main():
         threading.Thread(target=server.run, daemon=True).start()
         try:
             import webview
-            WINDOW = webview.create_window('东东下载 · Dongdong', url, js_api=DesktopAPI(), width=1180, height=850, min_size=(760, 600), background_color='#faf8f4', text_select=True)
+            WINDOW = webview.create_window('东东下载', url, js_api=DesktopAPI(), width=1180, height=850, min_size=(760, 600), background_color='#faf8f4', text_select=True)
             webview.start(gui='edgechromium', private_mode=True)
         finally:
             server.close()
