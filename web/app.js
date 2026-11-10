@@ -85,20 +85,22 @@ function paintDownloads(id){document.querySelectorAll('[data-download-id]').forE
 function render(){
   const items=currentPost.media,grid=$('#media-grid');grid.replaceChildren();$('#download-all').hidden=items.length<2;
   bindDownload($('#download-all'),'allZip',{},'download',items.map(item=>item.index),'original',0,currentPost);
-  const meta=$('#post-meta');meta.replaceChildren();if(currentPost.avatar){const avatar=el('img','author-avatar');avatar.src=currentPost.avatar;avatar.alt='';avatar.onerror=()=>avatar.remove();meta.append(avatar);}const copy=el('div','post-copy'),author=el('strong','',currentPost.author||'X'),description=el('p','',currentPost.title);author.dir='auto';description.dir='auto';copy.append(author,description);meta.append(copy);
+  const meta=$('#post-meta');meta.replaceChildren();if(currentPost.avatar){const avatar=el('img','author-avatar');avatar.src=currentPost.avatar;avatar.alt='';avatar.onerror=()=>avatar.remove();meta.append(avatar);}const copy=el('div','post-copy'),author=el('strong','',currentPost.author||'X'),description=el('p','',String(currentPost.title).replace(/\r\n?/g,'\n').replace(/\n[\t ]*\n+/g,'\n'));author.dir='auto';description.dir='auto';description.id='post-text';
+  const expand=button('expandPost','post-toggle',()=>{const expanded=description.classList.toggle('expanded');expand.setAttribute('aria-expanded',String(expanded));label(expand.querySelector('span'),expanded?'collapsePost':'expandPost');});expand.hidden=true;expand.setAttribute('aria-expanded','false');expand.setAttribute('aria-controls','post-text');copy.append(author,description,expand);meta.append(copy);
+  requestAnimationFrame(()=>{if(description.isConnected)expand.hidden=description.scrollHeight<=description.clientHeight+1;});
   items.forEach(item=>{
     const post=currentPost,card=el('article','media-card'),thumb=el('div','thumbnail');
     if(item.preview){const img=el('img');img.src=item.preview;img.alt=item.kind==='gif'?'GIF':t(item.kind);img.loading='lazy';img.onerror=()=>{img.remove();thumb.append(label(el('span'),'previewUnavailable'));};thumb.append(img);}
     const f=item.formats[0];
     thumb.append(el('span','media-badge',item.kind==='gif'?'GIF / MP4':String(f.ext).toUpperCase()));if(item.duration)thumb.append(el('span','duration',duration(item.duration)));
     card.setAttribute('aria-label',(item.kind==='gif'?'GIF':t(item.kind))+' '+(item.index+1));
-    card.append(thumb);const info=el('div','media-info'),controls=el('div','media-controls');
+    card.append(thumb);const info=el('div','media-info'),details=el('div','media-details'),controls=el('div','media-controls');details.append(el('h3','media-title',(item.kind==='gif'?'GIF':t(item.kind))+' '+String(item.index+1).padStart(2,'0')),el('p','media-sub',f.width&&f.height?f.width+' × '+f.height:''));
     const row=el('div','download-row');item.formats.forEach((fmt,i)=>row.append(downloadButton(item.kind==='photo'?'downloadPhoto':'downloadMp4','primary',[item.index],'original',i,post,{quality:fmt.label==='original'?t('original'):fmt.label},'download')));controls.append(row);
     const extras=el('div','extra-actions');
     if(item.kind==='gif'){const convert=downloadButton('convertGif','secondary',[item.index],'gif',0,post);convert.dataset.unavailable=String(!config.conversion);convert.disabled=convert.disabled||!config.conversion;convert.title=config.conversion?'GIF · 640 px · 12 fps · ≤ 120 s':t('noFfmpeg');extras.append(convert);}
     if(item.kind==='video'){const convert=downloadButton('convertMp3','secondary',[item.index],'mp3',0,post,{},'audio');convert.dataset.unavailable=String(!config.conversion);convert.disabled=convert.disabled||!config.conversion;if(!config.conversion)convert.title=t('noFfmpeg');extras.append(convert);}
     if(item.kind!=='photo'&&item.preview)extras.prepend(downloadButton('cover','secondary',[item.index],'cover',0,post,{},'photo'));
-    controls.append(extras);info.append(controls);card.append(info);grid.append(card);
+    controls.append(extras);info.append(details,controls);card.append(info);grid.append(card);
   });
 }
 async function save(job,transfer){
