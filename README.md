@@ -2,6 +2,8 @@
 
 免费 X / Twitter 媒体下载器：一套 HTML 界面，同时用于网页版和 Windows 桌面版。所有下载功能免费，支持作者完全自愿。
 
+在线使用：[x.dd-oss.com](https://x.dd-oss.com/)。Windows 版可从网站顶部的 Windows 入口下载。
+
 ## Windows 使用
 
 双击 `Dongdong.exe` 打开独立窗口，无需安装 Python、Node.js 或 FFmpeg。Windows 10/11 x64，需要 Microsoft Edge WebView2 Runtime（多数较新 Windows 已安装）。如缺少 WebView2，可运行 `start-web.bat` 使用浏览器界面，或安装微软官方 WebView2 Runtime。
@@ -109,6 +111,10 @@ Linux 部署配置见 `deploy/x-download.service` 和 `deploy/nginx.conf.example
 没有域名时保持监听 `127.0.0.1`，通过 SSH 转发预览，不开放应用端口。有域名后，复制 Nginx 示例为独立站点，替换 `server_name`，配置 HTTPS，再检查配置并平滑重载；保留已有站点配置。示例关闭代理响应缓冲和缓存、限制解析请求与下载并发，避免代理把媒体缓冲到磁盘。CDN 也应关闭下载路由缓存。公网使用需按服务器容量设置带宽额度；当前是单进程小规模版本。
 
 需要网页提供 Windows 下载时，把 EXE 放在源码目录的 `release/current/Dongdong.exe`。服务器部署不需要安装桌面依赖或 WebView2。
+
+本站 HTTPS 使用免费的 Let's Encrypt 证书。Certbot 通过 `webroot` 验证 `/var/lib/x-download-acme`，Nginx 在 HTTP 站点中保留 `/.well-known/acme-challenge/` 路径，其余 HTTP 请求跳转到 HTTPS。`certbot.timer` 定期检查并在到期前续期；续期成功后执行项目专用 hook，先检查 Nginx 配置，再平滑加载新证书。
+
+服务器上的独立站点配置为 `/etc/nginx/sites-available/x-download`，续期 hook 为 `/etc/letsencrypt/renewal-hooks/deploy/x-download.sh`。维护时保留域名 A 记录和公网 80 / 443 端口，勿删除验证路径或停用计时器。查看续期任务可运行 `systemctl list-timers certbot.timer`；使用 Certbot 自带的模拟续期命令 `certbot renew --cert-name x.dd-oss.com --dry-run --run-deploy-hooks --no-random-sleep-on-renew` 检查续期及加载流程。无需在域名注册商购买 SSL。
 
 品牌资源位于 `web/brand.svg`、`web/brand.png` 和 `web/brand.ico`。名称尚未经过商标检索，公开发布前需确认目标地区的品牌使用条件。
 
