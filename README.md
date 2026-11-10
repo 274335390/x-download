@@ -94,15 +94,21 @@ powershell -ExecutionPolicy Bypass -File build.ps1 -FFmpegPath C:\path\to\ffmpeg
 
 产物：`release/current/Dongdong.exe`，附带网页启动脚本、说明和第三方许可文件。编译环境需 Windows x64。打包不会修改系统 PATH。
 
-## 后续部署成网站
+## 部署成网站
 
-这版交付本地运行的 HTML / EXE，尚未部署公网域名。需要发布时，可在能访问 X 的 Linux / Windows 服务器上运行同一后端（安装 Python 依赖和 FFmpeg）：
+前端和后端部署在同一站点。GitHub Pages 只能托管静态文件，不能运行解析、下载或转码；HTTPS 网页也不能直接调用 HTTP 后端。建议使用服务器上的同源 HTTPS 反向代理。
+
+Linux 部署配置见 `deploy/x-download.service` 和 `deploy/nginx.conf.example`。源码放在 `/opt/x-download/current`，Python 虚拟环境放在 `/opt/x-download/venv`；用虚拟环境中的 pip 安装 `requirements.txt`。FFmpeg 可使用系统已有版本，或放在 `/opt/x-download/bin/ffmpeg`，不必替换系统版本。部署到已有项目的服务器时，使用独立目录和用户，不升级其他项目依赖。
 
 ```sh
-python app.py --web --no-browser --host 127.0.0.1 --port 18765
+/opt/x-download/venv/bin/python /opt/x-download/current/app.py --web --no-browser --host 127.0.0.1 --port 18765 --production
 ```
 
-在 HTTPS 反向代理后部署，并将 Host 头转发为 `127.0.0.1:18765`；如需直接监听容器接口，可用 `--host 0.0.0.0`，由外层控制访问。程序使用 Waitress，不使用 Flask 开发服务器。为保持媒体不落盘，代理层需关闭响应缓冲和缓存，例如 Nginx 的 `proxy_buffering off; proxy_cache off; proxy_max_temp_file_size 0;`；同时关闭本下载路由的 CDN 缓存。公网使用还需在代理层限制请求速率和并发、配置带宽额度；当前是单进程小规模版本。需要网页提供 Windows 下载时，把 EXE 放在源码目录的 `release/current/Dongdong.exe`。
+`--production` 关闭本地诊断信息，适用于反向代理后的服务。程序使用 Waitress。systemd 配置以 `xdownload` 用户运行，限制 CPU 为一个核心、内存为 512 MB，并降低 CPU 调度优先级。使用配置前需创建该系统用户，确认端口空闲；将服务文件放入 `/etc/systemd/system/` 后只启用 `x-download.service`。
+
+没有域名时保持监听 `127.0.0.1`，通过 SSH 转发预览，不开放应用端口。有域名后，复制 Nginx 示例为独立站点，替换 `server_name`，配置 HTTPS，再检查配置并平滑重载；保留已有站点配置。示例关闭代理响应缓冲和缓存、限制解析请求与下载并发，避免代理把媒体缓冲到磁盘。CDN 也应关闭下载路由缓存。公网使用需按服务器容量设置带宽额度；当前是单进程小规模版本。
+
+需要网页提供 Windows 下载时，把 EXE 放在源码目录的 `release/current/Dongdong.exe`。服务器部署不需要安装桌面依赖或 WebView2。
 
 品牌资源位于 `web/brand.svg`、`web/brand.png` 和 `web/brand.ico`。名称尚未经过商标检索，公开发布前需确认目标地区的品牌使用条件。
 

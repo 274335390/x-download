@@ -629,12 +629,13 @@ def main():
     parser.add_argument('--web', action='store_true', help='Run in the browser instead of a desktop window')
     parser.add_argument('--no-browser', action='store_true', help='Run the web server without opening a browser')
     parser.add_argument('--host', default='127.0.0.1')
+    parser.add_argument('--production', action='store_true', help='Disable local diagnostics behind a reverse proxy')
     parser.add_argument('--port', type=int, default=None)
     parser.add_argument('--proxy', default=PROXY, help='Optional HTTP/HTTPS proxy URL')
     args = parser.parse_args()
     PROXY = args.proxy
     DESKTOP = not (args.web or args.no_browser)
-    app.config['REMOTE'] = args.host not in {'127.0.0.1', 'localhost'}
+    app.config['REMOTE'] = args.production or args.host not in {'127.0.0.1', 'localhost'}
     if DESKTOP and app.config['REMOTE']:
         parser.error('Desktop mode must use localhost; use --web for server deployment.')
     server = create_server(app, host=args.host, port=args.port if args.port is not None else (0 if DESKTOP else 18765), threads=8, max_request_body_size=8192, outbuf_overflow=sys.maxsize, outbuf_high_watermark=256 * 1024)

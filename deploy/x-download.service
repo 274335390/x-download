@@ -1,0 +1,33 @@
+[Unit]
+Description=Dongdong X media downloader
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xdownload
+Group=xdownload
+WorkingDirectory=/opt/x-download/current
+ExecStart=/opt/x-download/venv/bin/python /opt/x-download/current/app.py --web --no-browser --host 127.0.0.1 --port 18765 --production
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/opt/x-download/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CPUQuota=100%
+CPUWeight=20
+Nice=10
+MemoryMax=512M
+MemorySwapMax=128M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

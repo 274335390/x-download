@@ -1,0 +1,38 @@
+# Load inside Nginx's http block. Replace downloads.example.com before enabling.
+limit_req_zone $binary_remote_addr zone=xdownload_requests:1m rate=1r/s;
+limit_conn_zone $binary_remote_addr zone=xdownload_connections:1m;
+
+server {
+    listen 80;
+    server_name downloads.example.com;
+    client_max_body_size 8k;
+    limit_req_status 429;
+    limit_conn_status 429;
+
+    # Avoid storing media URLs and app tokens in access logs.
+    access_log off;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_http_version 1.1;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_cache off;
+    proxy_max_temp_file_size 0;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+
+    location ~ ^/api/(parse|jobs)$ {
+        limit_req zone=xdownload_requests burst=5 nodelay;
+        proxy_pass http://127.0.0.1:18765;
+    }
+
+    location /api/files/ {
+        limit_conn xdownload_connections 2;
+        proxy_pass http://127.0.0.1:18765;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:18765;
+    }
+}
