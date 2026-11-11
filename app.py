@@ -373,7 +373,7 @@ def headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Referrer-Policy'] = 'no-referrer'
     response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['Cache-Control'] = 'public, max-age=3600' if request.endpoint == 'browser_vendor' and response.status_code == 200 else 'no-store'
+    response.headers['Cache-Control'] = 'public, max-age=86400' if request.endpoint == 'browser_vendor' and response.status_code in (200, 304) else 'no-store'
     media_sources = ' https://video.twimg.com https://pbs.twimg.com' if browser_processing() else ''
     wasm = " 'wasm-unsafe-eval'" if browser_processing() else ''
     response.headers['Content-Security-Policy'] = f"default-src 'self'; script-src 'self' 'unsafe-inline'{wasm}; style-src 'self' 'unsafe-inline'; img-src 'self' data:{media_sources}; connect-src 'self'{media_sources}; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'none'"

@@ -11,7 +11,8 @@ programs retain their respective licenses; the bundled FFmpeg core is **not MIT*
 
 Versions, official npm download locations and SHA-512 integrity values are in
 [web/vendor-manifest.json](web/vendor-manifest.json). Run
-`pwsh -File scripts/fetch-browser-vendor.ps1` to restore the browser runtime. This
+`python scripts/fetch-browser-vendor.py` to restore the browser runtime. A
+PowerShell 7 installer is also available as `scripts/fetch-browser-vendor.ps1`. This
 does not execute npm installation scripts. Generated `web/vendor/` files are
 excluded from Git by the existing `vendor/` ignore rule; deploy the restored
 directory alongside `web/`. The application loads the ZIP library only for ZIP

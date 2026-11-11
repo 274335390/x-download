@@ -46,13 +46,13 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS / Linux: source .venv/bin/activate
 pip install -r requirements.txt
-pwsh -File scripts/fetch-browser-vendor.ps1
+python scripts/fetch-browser-vendor.py
 python app.py --web
 ```
 
 访问 `http://127.0.0.1:18765`。前端需要配套后端解析帖子，单独打开 HTML 或只上传到 GitHub Pages 不能完成整个流程。
 
-浏览器依赖安装需要 PowerShell 7 和 `tar`，按固定版本及哈希校验下载。也可以在开发电脑执行后，把生成的 `web/vendor/` 一起部署；该目录不提交到 Git。普通 MP4、图片下载无需这些依赖，ZIP 和格式转换需要。
+浏览器依赖按固定版本及哈希校验下载。也可以在开发电脑执行后，把生成的 `web/vendor/` 一起部署；该目录不提交到 Git。普通 MP4、图片下载无需这些依赖，ZIP 和格式转换需要。
 
 ## 部署与开发
 

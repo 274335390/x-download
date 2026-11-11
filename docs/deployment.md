@@ -4,7 +4,7 @@
 
 前后端部署在同一个站点。默认 `XDOWNLOAD_WEB_PROCESSING=browser`：Python 后端解析帖子，用户浏览器直连 X 媒体 CDN，下载、ZIP 和格式转换在用户设备处理。用户网络需能访问 `video.twimg.com` 和 `pbs.twimg.com`；失败只提示重试，不自动回退服务器。
 
-部署前在开发电脑执行 `pwsh -File scripts/fetch-browser-vendor.ps1`（PowerShell 7），将生成的 `web/vendor/` 随源码一起上传。这些固定版本依赖不进入 Git，哈希和来源见 `web/vendor-manifest.json`。转换引擎约 31 MiB，仅首次转换时按需加载；网页、解析请求和运行文件仍会消耗站点流量。
+部署前执行 `python scripts/fetch-browser-vendor.py`，从官方 npm 源恢复固定版本依赖；也可在开发电脑执行后将生成的 `web/vendor/` 上传。这些依赖不进入 Git，哈希和来源见 `web/vendor-manifest.json`。转换引擎约 31 MiB，仅首次转换时按需加载；网页、解析请求和运行文件仍会消耗站点流量。
 
 部署配置见 [`deploy/x-download.service`](../deploy/x-download.service) 和 [`deploy/nginx.conf.example`](../deploy/nginx.conf.example)。使用独立系统用户 `xdownload`；源码放在 `/opt/x-download/current`，虚拟环境放在 `/opt/x-download/venv`，用该环境的 pip 安装 `requirements.txt`。FFmpeg 可使用已有系统版本，或单独放入 `/opt/x-download/bin/ffmpeg`。
 
