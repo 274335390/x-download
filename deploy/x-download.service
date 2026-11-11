@@ -11,6 +11,7 @@ WorkingDirectory=/opt/x-download/current
 ExecStart=/opt/x-download/venv/bin/python /opt/x-download/current/app.py --web --no-browser --host 127.0.0.1 --port 18765 --production
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
+Environment=XDOWNLOAD_WEB_PROCESSING=browser
 Environment=PATH=/opt/x-download/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Restart=on-failure
 RestartSec=5

@@ -2,9 +2,13 @@
 
 ## Linux 服务
 
-前后端部署在同一个站点。前端是静态 HTML，解析、下载与转换由 Python 后端处理。服务器需能访问 FxEmbed、X 和 `*.twimg.com`。
+前后端部署在同一个站点。默认 `XDOWNLOAD_WEB_PROCESSING=browser`：Python 后端解析帖子，用户浏览器直连 X 媒体 CDN，下载、ZIP 和格式转换在用户设备处理。用户网络需能访问 `video.twimg.com` 和 `pbs.twimg.com`；失败只提示重试，不自动回退服务器。
+
+部署前在开发电脑执行 `pwsh -File scripts/fetch-browser-vendor.ps1`（PowerShell 7），将生成的 `web/vendor/` 随源码一起上传。这些固定版本依赖不进入 Git，哈希和来源见 `web/vendor-manifest.json`。转换引擎约 31 MiB，仅首次转换时按需加载；网页、解析请求和运行文件仍会消耗站点流量。
 
 部署配置见 [`deploy/x-download.service`](../deploy/x-download.service) 和 [`deploy/nginx.conf.example`](../deploy/nginx.conf.example)。使用独立系统用户 `xdownload`；源码放在 `/opt/x-download/current`，虚拟环境放在 `/opt/x-download/venv`，用该环境的 pip 安装 `requirements.txt`。FFmpeg 可使用已有系统版本，或单独放入 `/opt/x-download/bin/ffmpeg`。
+
+需要保留服务器处理时，将服务中的环境变量改为 `XDOWNLOAD_WEB_PROCESSING=server` 后重启下载器。此时媒体流量经过服务器，MP3 / GIF 需要本机 FFmpeg。浏览器模式不开放媒体转发接口；桌面版始终在本机处理。
 
 ```sh
 /opt/x-download/venv/bin/python /opt/x-download/current/app.py \
@@ -68,6 +72,6 @@ python app.py --web --proxy http://127.0.0.1:7890
 
 ## 资源与数据
 
-解析与任务元数据在内存中约 30 分钟后过期，最多同时处理两个下载。媒体、ZIP 和 FFmpeg 输出走流式管道，不主动生成媒体临时文件。网页版使用浏览器 Blob 保存文件，可能消耗较多内存；浏览器自身可能生成缓存或 `.crdownload`。Windows 直接写入用户选择的最终文件，失败时尝试清理本次未完成文件。
+解析元数据在内存中约 30 分钟后过期。每个页面一次处理一个下载或转换任务；单次任务最多 256 MiB。关闭下载弹窗时会询问是否取消，确认后终止当前任务。浏览器 Blob 和 WebAssembly 会消耗用户内存，浏览器自身可能生成缓存或 `.crdownload`。服务器模式最多同时处理两个媒体任务，媒体、ZIP 和 FFmpeg 输出走流式管道，不主动生成媒体临时文件。Windows 直接写入用户选择的最终文件，失败时尝试清理本次未完成文件。
 
 品牌图标位于 `web/brand.svg`、`web/brand.png` 和 `web/brand.ico`。重新分发前阅读 [第三方组件说明](../THIRD_PARTY.md)，媒体内容不受本项目 MIT 代码许可授权。

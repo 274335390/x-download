@@ -32,7 +32,7 @@ Windows 用户可下载 `Dongdong.exe`，双击运行。适用于 Windows 10/11�
 
 ## 本地运行
 
-需要 Python 3.10+；MP3 / GIF 转换还需安装 FFmpeg 并加入 PATH。
+需要 Python 3.10+。网页版默认由浏览器下载和转换媒体，无需安装本机 FFmpeg；如使用下方的服务器处理模式，MP3 / GIF 转换需安装 FFmpeg 并加入 PATH。
 
 ```bash
 git clone https://github.com/274335390/x-download.git
@@ -46,10 +46,13 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS / Linux: source .venv/bin/activate
 pip install -r requirements.txt
+pwsh -File scripts/fetch-browser-vendor.ps1
 python app.py --web
 ```
 
-访问 `http://127.0.0.1:18765`。前端需要配套后端，单独打开 HTML 或只上传到 GitHub Pages 不能完成解析、下载和转换。
+访问 `http://127.0.0.1:18765`。前端需要配套后端解析帖子，单独打开 HTML 或只上传到 GitHub Pages 不能完成整个流程。
+
+浏览器依赖安装需要 PowerShell 7 和 `tar`，按固定版本及哈希校验下载。也可以在开发电脑执行后，把生成的 `web/vendor/` 一起部署；该目录不提交到 Git。普通 MP4、图片下载无需这些依赖，ZIP 和格式转换需要。
 
 ## 部署与开发
 
@@ -62,11 +65,26 @@ python app.py --web
 
 服务器部署、HTTPS 自动续期和 Windows 打包见 **[部署说明](docs/deployment.md)**。第三方组件见 [THIRD_PARTY.md](THIRD_PARTY.md)。
 
+### 网页处理模式
+
+通过环境变量 `XDOWNLOAD_WEB_PROCESSING` 选择，修改后重启应用：
+
+| 值 | 下载和转换在哪里处理 |
+| --- | --- |
+| `browser`（默认） | 后端只解析帖子；浏览器直连 X 媒体 CDN，下载、ZIP 打包和 MP3 / GIF 转换在用户设备上完成 |
+| `server` | 保留后端流式下载、ZIP 打包和 FFmpeg 转换，媒体流量经过部署服务器 |
+
+例如 Linux 上运行 `XDOWNLOAD_WEB_PROCESSING=server python app.py --web`；PowerShell 中先设置 `$env:XDOWNLOAD_WEB_PROCESSING='server'`，再启动应用。Windows 桌面版始终在本机处理，不受此开关影响。
+
+浏览器模式要求用户网络能访问 `video.twimg.com` 和 `pbs.twimg.com`，且上游响应允许跨域读取。连接失败时页面会提示，不会自动改用服务器转发；此模式也会关闭后端媒体代理入口。解析请求和网页资源仍由服务器提供。
+
+浏览器转换按需加载随项目提供的 FFmpeg WebAssembly 文件，比本机 FFmpeg 慢，并消耗用户设备的 CPU 和内存；大文件或性能较低的手机更适合下载原文件后处理。网页需通过 HTTPS 或本机 `localhost` / `127.0.0.1` 使用。
+
 ## 使用范围
 
 仅支持可访问的公开帖子，不支持私密帖子、直播或整个账号。单次下载（含 ZIP）上限 256 MB；GIF 转换为 640 px、12 fps，最多处理前 120 秒。解析依赖 FxEmbed、yt-dlp 和 X 媒体服务，上游变化或限流可能导致失败。
 
-后端流式处理媒体，不主动创建媒体临时文件；浏览器和操作系统仍可能使用下载缓存。语言和外观偏好保存在本地，不保存下载历史数据库。
+默认网页模式在浏览器内处理媒体，不把媒体下载到部署服务器；服务器模式流式处理，不主动创建媒体临时文件。浏览器和操作系统仍可能使用下载缓存。语言和外观偏好保存在本地，不保存下载历史数据库。
 
 请仅下载你拥有版权、已获许可或依法有权使用的内容。个人使用不等于自动获得授权；未经授权，不得转载、分发或用于商业活动。本项目与 X / Twitter 无隶属或背书关系。
 

@@ -2,6 +2,8 @@
 
 Dongdong uses these independently maintained components. Availability of X media depends on the upstream services and the user's network.
 
+Browser ZIP and WebAssembly conversion use separately pinned dependencies. Their licenses, corresponding source and restoration instructions are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
 | Component | Use | License / source |
 | --- | --- | --- |
 | FxEmbed / FxTwitter public API | Public post metadata, video variants, GIF and photos | https://github.com/FxEmbed/FxEmbed (MIT); https://docs.fxembed.com/ |

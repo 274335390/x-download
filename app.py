@@ -38,6 +38,9 @@ DOWNLOAD_SLOTS = threading.BoundedSemaphore(2)
 PARSE_SLOTS = threading.BoundedSemaphore(3)
 DESKTOP = False
 WINDOW = None
+WEB_PROCESSING = os.environ.get('XDOWNLOAD_WEB_PROCESSING', 'browser').strip().lower()
+if WEB_PROCESSING not in {'browser', 'server'}:
+    raise ValueError('XDOWNLOAD_WEB_PROCESSING must be browser or server')
 PROXY = os.environ.get('DONGDONG_PROXY', os.environ.get('XDOWNLOAD_PROXY', ''))
 FFMPEG = next((str(p) for p in (HOME / 'vendor/ffmpeg.exe', ROOT / 'vendor/ffmpeg.exe') if p.is_file()), shutil.which('ffmpeg'))
 app = Flask(__name__, static_folder=None)
@@ -47,6 +50,10 @@ logging.basicConfig(level=logging.WARNING)
 
 class UserError(Exception):
     pass
+
+
+def browser_processing():
+    return not DESKTOP and WEB_PROCESSING == 'browser'
 
 
 def get(url, **kwargs):
@@ -159,6 +166,24 @@ def from_ytdlp(identifier):
 
 
 def public_post(post):
+    if browser_processing():
+        media = []
+        for index, item in enumerate(post['media']):
+            preview = media_url(item['preview']) if item.get('preview') else None
+            cover = None
+            if preview and item['kind'] != 'photo':
+                url, ext = photo_original(preview)
+                cover = {'url': url, 'ext': ext}
+            media.append({
+                **{k: v for k, v in item.items() if k not in {'formats', 'preview'}},
+                'index': index, 'preview': preview, 'cover': cover,
+                'formats': [{**fmt, 'url': media_url(fmt['url'])} for fmt in item['formats']],
+            })
+        return {
+            **{k: v for k, v in post.items() if k not in {'media', 'created', 'avatar'}},
+            'avatar': media_url(post['avatar']) if post.get('avatar') else None,
+            'media': media,
+        }
     return {**{k: v for k, v in post.items() if k not in {'media', 'created', 'avatar'}}, 'avatar': f'/api/avatar/{post["id"]}?token={TOKEN}' if post.get('avatar') else None, 'media': [
         {**{k: v for k, v in item.items() if k not in {'formats', 'preview'}}, 'index': i, 'preview': f'/api/preview/{post["id"]}/{i}?token={TOKEN}' if item['preview'] else None,
          'formats': [{k: v for k, v in fmt.items() if k != 'url'} for fmt in item['formats']]}
@@ -168,12 +193,21 @@ def public_post(post):
 def update_job(job, **values):
     with LOCK:
         job.update(values)
+        if job.get('cancelled'):
+            job.update(status='cancelled', message='cancelled')
+
+
+def check_cancelled(job):
+    if job.get('cancelled'):
+        raise UserError('cancelled')
 
 
 def retrieve(url, job):
+    check_cancelled(job)
     size = 0
     start = time.monotonic()
     with get(media_url(url), stream=True, allow_redirects=False) as response:
+        check_cancelled(job)
         response.raise_for_status()
         if response.status_code != 200:
             raise UserError('downloadError')
@@ -181,6 +215,7 @@ def retrieve(url, job):
         if total > MAX_BYTES:
             raise UserError('sizeError')
         for chunk in response.iter_content(64 * 1024):
+            check_cancelled(job)
             size += len(chunk)
             if size > MAX_BYTES or time.monotonic() - start > 600:
                 raise UserError('sizeError')
@@ -191,6 +226,7 @@ def retrieve(url, job):
 
 
 def converted(url, mode, job):
+    check_cancelled(job)
     args = [FFMPEG, '-nostdin', '-hide_banner', '-loglevel', 'error', '-rw_timeout', '30000000']
     proxy = PROXY or getproxies().get('https') or getproxies().get('http')
     if proxy:
@@ -208,20 +244,33 @@ def converted(url, mode, job):
             errors.append(chunk)
     reader = threading.Thread(target=read_errors, daemon=True)
     reader.start()
-    timeout = threading.Timer(600, process.kill)
-    timeout.start()
+    stopped = threading.Event()
+    def stop_when_cancelled():
+        deadline = time.monotonic() + 600
+        while not stopped.wait(0.25):
+            if job.get('cancelled') or time.monotonic() >= deadline:
+                try:
+                    process.kill()
+                except OSError:
+                    pass
+                return
+    watchdog = threading.Thread(target=stop_when_cancelled, daemon=True)
+    watchdog.start()
     try:
         for chunk in iter(lambda: process.stdout.read(64 * 1024), b''):
+            check_cancelled(job)
             yield chunk
         process.wait()
         reader.join(timeout=2)
+        check_cancelled(job)
         if process.returncode:
             detail = b''.join(errors).decode('utf-8', errors='replace')
             if 'matches no streams' in detail or 'does not contain any stream' in detail:
                 raise UserError('noAudio')
             raise UserError('conversionError')
     finally:
-        timeout.cancel()
+        stopped.set()
+        watchdog.join(timeout=1)
         if process.poll() is None:
             process.kill()
         process.wait()
@@ -252,6 +301,7 @@ class ZipSink(io.RawIOBase):
 
 
 def payload(job):
+    check_cancelled(job)
     selections, mode = job['selections'], job['mode']
     if len(selections) == 1:
         fmt = selections[0][2]
@@ -262,6 +312,7 @@ def payload(job):
         sink = ZipSink()
         with zipfile.ZipFile(sink, 'w', zipfile.ZIP_STORED) as archive:
             for number, (post, item, fmt, index) in enumerate(selections, 1):
+                check_cancelled(job)
                 update_job(job, message='packing', number=number, total=len(selections), progress=0)
                 with archive.open(f'X_{post["id"]}_{index + 1}.{fmt["ext"]}', 'w', force_zip64=True) as output:
                     with closing(retrieve(fmt['url'], job)) as stream:
@@ -274,6 +325,7 @@ def payload(job):
 
 def stream_job(job):
     with LOCK:
+        check_cancelled(job)
         if job.get('active'):
             raise UserError('busyError')
         if not DOWNLOAD_SLOTS.acquire(blocking=False):
@@ -285,19 +337,21 @@ def stream_job(job):
         size = 0
         with closing(payload(job)) as stream:
             for chunk in stream:
+                check_cancelled(job)
                 size += len(chunk)
                 if size > MAX_BYTES:
                     raise UserError('sizeError')
                 yield chunk
+        check_cancelled(job)
         if not size:
             raise UserError('downloadError')
         update_job(job, status='done', progress=100, message='done', size=size, completed=time.time())
     except GeneratorExit:
-        update_job(job, status='error', message='downloadError', completed=time.time())
+        update_job(job, status='cancelled' if job.get('cancelled') else 'error', message='cancelled' if job.get('cancelled') else 'downloadError', completed=time.time())
         raise
     except Exception as error:
-        message = str(error) if isinstance(error, UserError) else 'downloadError'
-        update_job(job, status='error', message=message, completed=time.time())
+        message = 'cancelled' if job.get('cancelled') else str(error) if isinstance(error, UserError) else 'downloadError'
+        update_job(job, status='cancelled' if message == 'cancelled' else 'error', message=message, completed=time.time())
         raise UserError(message) from None
     finally:
         update_job(job, active=False)
@@ -319,8 +373,10 @@ def headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Referrer-Policy'] = 'no-referrer'
     response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['Cache-Control'] = 'no-store'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'"
+    response.headers['Cache-Control'] = 'public, max-age=3600' if request.endpoint == 'browser_vendor' and response.status_code == 200 else 'no-store'
+    media_sources = ' https://video.twimg.com https://pbs.twimg.com' if browser_processing() else ''
+    wasm = " 'wasm-unsafe-eval'" if browser_processing() else ''
+    response.headers['Content-Security-Policy'] = f"default-src 'self'; script-src 'self' 'unsafe-inline'{wasm}; style-src 'self' 'unsafe-inline'; img-src 'self' data:{media_sources}; connect-src 'self'{media_sources}; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'none'"
     return response
 
 
@@ -341,14 +397,27 @@ def index():
 
 @app.get('/<name>')
 def web_asset(name):
-    if name not in {'style.css', 'app.js', 'i18n.js', 'brand.svg', 'brand.ico', 'brand.png'}:
+    if name not in {'style.css', 'app.js', 'browser-media.js', 'i18n.js', 'brand.svg', 'brand.ico', 'brand.png'}:
         abort(404)
     return send_file(ROOT / 'web' / name)
 
 
+@app.get('/vendor/<name>')
+def browser_vendor(name):
+    if name not in {'fflate.min.js', 'ffmpeg.js', '814.ffmpeg.js', 'ffmpeg-core.js', 'ffmpeg-core.wasm', 'LICENSE.fflate', 'LICENSE.ffmpeg', 'LICENSE.ffmpeg-core'}:
+        abort(404)
+    path = ROOT / 'web/vendor' / name
+    if not path.is_file():
+        abort(404)
+    mimetype = 'application/wasm' if name.endswith('.wasm') else 'text/plain' if name.startswith('LICENSE.') else 'text/javascript'
+    return send_file(path, mimetype=mimetype)
+
+
 @app.get('/api/config')
 def config():
-    return jsonify(version=VERSION, desktop=DESKTOP, conversion=bool(FFMPEG), desktopDownload=desktop_binary().is_file())
+    browser = browser_processing()
+    conversion = all((ROOT / 'web/vendor' / name).is_file() for name in ('ffmpeg.js', '814.ffmpeg.js', 'ffmpeg-core.js', 'ffmpeg-core.wasm')) if browser else bool(FFMPEG)
+    return jsonify(version=VERSION, desktop=DESKTOP, webProcessing='browser' if browser else 'server', conversion=conversion, desktopDownload=desktop_binary().is_file())
 
 
 def release_version(value):
@@ -472,6 +541,8 @@ def parse():
 
 @app.get('/api/preview/<identifier>/<int:index>')
 def preview(identifier, index):
+    if browser_processing():
+        return jsonify(error='invalidSelection'), 403
     with LOCK:
         post = POSTS.get(identifier)
     if not post or index >= len(post['media']) or not post['media'][index]['preview']:
@@ -481,6 +552,8 @@ def preview(identifier, index):
 
 @app.get('/api/avatar/<identifier>')
 def author_avatar(identifier):
+    if browser_processing():
+        return jsonify(error='invalidSelection'), 403
     with LOCK:
         post = POSTS.get(identifier)
     if not post or not post.get('avatar'):
@@ -502,6 +575,8 @@ def image_response(url):
 
 @app.post('/api/jobs')
 def create_job():
+    if browser_processing():
+        return jsonify(error='invalidSelection'), 403
     data = request.get_json(silent=True) or {}
     mode = data.get('mode', 'original')
     if mode not in {'original', 'photo', 'mp3', 'gif', 'cover'}:
@@ -562,8 +637,23 @@ def job_status(identifier):
         return jsonify({k: v for k, v in job.items() if k not in {'selections', 'active'}})
 
 
+@app.post('/api/jobs/<identifier>/cancel')
+def cancel_job(identifier):
+    if browser_processing():
+        return jsonify(error='invalidSelection'), 403
+    with LOCK:
+        job = JOBS.get(identifier)
+        if not job:
+            return jsonify(error='expired'), 404
+        if job['status'] != 'done':
+            update_job(job, cancelled=True, status='cancelled', message='cancelled', completed=time.time())
+        return jsonify(cancelled=bool(job.get('cancelled')), status=job['status'])
+
+
 @app.get('/api/files/<identifier>')
 def file_download(identifier):
+    if browser_processing():
+        return jsonify(error='invalidSelection'), 403
     with LOCK:
         job = JOBS.get(identifier)
         if not job:
@@ -590,9 +680,11 @@ class DesktopAPI:
             job = JOBS.get(identifier)
             if not job:
                 return {'error': 'expired'}
+            if job.get('cancelled'):
+                return {'cancelled': True}
         selected = WINDOW.create_file_dialog(webview.FileDialog.SAVE, save_filename=job['filename'])
-        if not selected:
-            update_job(job, status='cancelled', message='cancelled', completed=time.time())
+        if not selected or job.get('cancelled'):
+            update_job(job, cancelled=True, status='cancelled', message='cancelled', completed=time.time())
             return {'cancelled': True}
         destination = selected[0] if isinstance(selected, (tuple, list)) else selected
         created = False
@@ -606,6 +698,9 @@ class DesktopAPI:
         except Exception as error:
             if created:
                 Path(destination).unlink(missing_ok=True)
+            if job.get('cancelled'):
+                update_job(job, status='cancelled', message='cancelled', completed=time.time())
+                return {'cancelled': True}
             message = str(error) if isinstance(error, UserError) else 'saveError'
             update_job(job, status='error', message=message, completed=time.time())
             return {'error': message}
