@@ -69,8 +69,10 @@ h2{font-size:17px;font-weight:650;margin:0 0 17px}
 .donation-banner>svg{color:var(--green)}
 .donation-banner span{flex:1}
 .footer{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:25px 0 30px;font-size:10px;color:#94887c}
-.legal-links{display:flex;gap:20px;flex-wrap:wrap;font-size:12px}
-.legal-links a:hover{text-decoration:underline;text-underline-offset:4px}
+.legal-links{display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:12px}
+.legal-links .plain{min-height:0;padding:0}
+.legal-links .plain svg{width:14px;height:14px}
+.legal-links a:hover,.legal-links .plain:hover{text-decoration:underline;text-underline-offset:4px}
 
 dialog{border:1px solid var(--line);border-radius:12px;padding:26px;max-width:440px;width:calc(100% - 36px);max-height:88vh;overflow:auto;box-shadow:0 25px 100px #35241826;color:var(--ink)}
 dialog::backdrop{background:#30281f77}
