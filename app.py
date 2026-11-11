@@ -491,8 +491,9 @@ def headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Cache-Control'] = 'public, max-age=86400' if request.endpoint == 'browser_vendor' and response.status_code in (200, 304) else 'no-store'
     media_sources = ' https://video.twimg.com https://pbs.twimg.com https://*.cdninstagram.com https://*.fbcdn.net' if browser_processing() else ''
+    playback_sources = media_sources or " 'none'"
     wasm = " 'wasm-unsafe-eval'" if browser_processing() else ''
-    response.headers['Content-Security-Policy'] = f"default-src 'self'; script-src 'self' 'unsafe-inline'{wasm}; style-src 'self' 'unsafe-inline'; img-src 'self' data:{media_sources}; connect-src 'self'{media_sources}; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'none'"
+    response.headers['Content-Security-Policy'] = f"default-src 'self'; script-src 'self' 'unsafe-inline'{wasm}; style-src 'self' 'unsafe-inline'; img-src 'self' data:{media_sources}; media-src{playback_sources}; connect-src 'self'{media_sources}; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'none'"
     return response
 
 

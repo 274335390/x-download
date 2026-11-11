@@ -817,3 +817,36 @@ for(const [code,[instagramUnavailable,instagramRateLimited,privacy]] of Object.e
   LOCALES[code].legal.privacy[0]='X: '+LOCALES[code].legal.privacy[0];
   LOCALES[code].legal.privacy.splice(1,0,privacy);
 }
+const playbackMessages={
+  en:['Play video','Unable to play. Check your connection or process the link again.'],
+  vi:['Phát video','Không thể phát. Hãy kiểm tra kết nối hoặc phân tích lại liên kết.'],
+  ar:['تشغيل الفيديو','تعذّر التشغيل. تحقق من اتصالك أو أعد معالجة الرابط.'],
+  cs:['Přehrát video','Nelze přehrát. Zkontrolujte připojení nebo znovu zpracujte odkaz.'],
+  de:['Video abspielen','Wiedergabe nicht möglich. Prüfe deine Verbindung oder verarbeite den Link erneut.'],
+  es:['Reproducir vídeo','No se puede reproducir. Comprueba tu conexión o vuelve a procesar el enlace.'],
+  fr:['Lire la vidéo','Lecture impossible. Vérifiez votre connexion ou traitez à nouveau le lien.'],
+  hi:['वीडियो चलाएँ','वीडियो नहीं चल सका। अपना कनेक्शन जाँचें या लिंक को फिर से प्रोसेस करें।'],
+  id:['Putar video','Tidak dapat memutar. Periksa koneksi atau proses ulang tautannya.'],
+  it:['Riproduci video','Riproduzione non riuscita. Controlla la connessione o elabora di nuovo il link.'],
+  ja:['動画を再生','再生できません。接続を確認するか、リンクをもう一度解析してください。'],
+  ko:['동영상 재생','재생할 수 없습니다. 인터넷 연결을 확인하거나 링크를 다시 분석해 주세요.'],
+  pl:['Odtwórz film','Nie można odtworzyć. Sprawdź połączenie lub ponownie przetwórz link.'],
+  pt:['Reproduzir vídeo','Não foi possível reproduzir. Verifique a conexão ou processe o link novamente.'],
+  ro:['Redă videoclipul','Nu se poate reda. Verifică conexiunea sau procesează din nou linkul.'],
+  ru:['Воспроизвести видео','Не удалось воспроизвести. Проверьте подключение или обработайте ссылку заново.'],
+  th:['เล่นวิดีโอ','เล่นไม่ได้ โปรดตรวจสอบการเชื่อมต่อหรือประมวลผลลิงก์อีกครั้ง'],
+  tr:['Videoyu oynat','Oynatılamıyor. Bağlantını kontrol et veya bağlantıyı yeniden işle.'],
+  uk:['Відтворити відео','Не вдалося відтворити. Перевірте з’єднання або обробіть посилання ще раз.'],
+  'zh-CN':['播放视频','无法播放。请检查网络，或重新解析链接。'],
+  'zh-TW':['播放影片','無法播放。請檢查網路，或重新解析連結。'],
+  ms:['Mainkan video','Tidak dapat dimainkan. Semak sambungan atau proses semula pautan.'],
+  hu:['Videó lejátszása','A lejátszás nem sikerült. Ellenőrizd a kapcsolatot, vagy dolgozd fel újra a hivatkozást.'],
+  nl:['Video afspelen','Afspelen lukt niet. Controleer je verbinding of verwerk de link opnieuw.'],
+  el:['Αναπαραγωγή βίντεο','Δεν είναι δυνατή η αναπαραγωγή. Ελέγξτε τη σύνδεσή σας ή επεξεργαστείτε ξανά τον σύνδεσμο.'],
+  he:['הפעלת סרטון','לא ניתן להפעיל. יש לבדוק את החיבור או לעבד את הקישור מחדש.'],
+  fa:['پخش ویدیو','پخش ممکن نیست. اتصال را بررسی کنید یا پیوند را دوباره پردازش کنید.'],
+  nb:['Spill av video','Kan ikke spilles av. Sjekk tilkoblingen eller behandle lenken på nytt.'],
+  sv:['Spela video','Det går inte att spela upp. Kontrollera anslutningen eller bearbeta länken igen.'],
+  fi:['Toista video','Toisto ei onnistu. Tarkista yhteys tai käsittele linkki uudelleen.']
+};
+for(const [code,[playVideo,playbackError]] of Object.entries(playbackMessages))Object.assign(LOCALES[code],{playVideo,playbackError});
