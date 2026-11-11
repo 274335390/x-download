@@ -35,7 +35,9 @@ h2{font-size:17px;font-weight:650;margin:0 0 17px}
 .field-label{display:block;font-size:13px;font-weight:600;margin-bottom:10px}
 .input-wrap{display:flex;align-items:center;border:1px solid #e2dbd1;border-radius:8px;min-height:66px;padding:7px 8px 7px 17px;gap:12px;background:var(--paper)}
 .input-wrap:focus-within{border-color:#cc876a;box-shadow:0 0 0 3px #fbede6}
-.input-wrap>svg{color:#9a8f82}
+.platform-mark{display:grid;place-items:center;flex:0 0 24px;width:24px;height:24px;color:var(--muted);font-size:13px;font-weight:700;direction:ltr}
+.platform-mark svg{width:20px;height:20px}
+.platform-mark.platform-name{flex-basis:auto;width:auto;font-size:12px;font-weight:600}
 .input-wrap input{width:100%;min-width:0;border:0;background:none;outline:none;padding:10px 0;font-size:14px;color:var(--ink)}
 .input-wrap input:focus-visible{outline:none}
 .input-wrap input::placeholder{color:#a39a90}

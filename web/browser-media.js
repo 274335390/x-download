@@ -65,7 +65,7 @@ window.BrowserMedia = (() => {
   async function pack(entries, onProgress = () => {}, signal) {
     if (signal?.aborted) throw Error('cancelled');
     if (packing) throw Error('busyError');
-    if (!Array.isArray(entries) || !entries.length || entries.length > 10 ||
+    if (!Array.isArray(entries) || !entries.length || entries.length > 20 ||
         entries.some(entry => !/^[A-Za-z0-9._-]+$/.test(entry.name) || !(entry.blob instanceof Blob)) ||
         new Set(entries.map(entry => entry.name)).size !== entries.length) throw Error('invalidSelection');
     if (entries.reduce((sum, entry) => sum + entry.blob.size, 0) > MAX_BYTES) throw Error('sizeError');

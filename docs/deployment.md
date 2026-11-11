@@ -2,11 +2,13 @@
 
 ## Linux 服务
 
-前后端部署在同一个站点。默认 `XDOWNLOAD_WEB_PROCESSING=browser`：Python 后端解析帖子，用户浏览器直连 X 媒体 CDN，下载、ZIP 和格式转换在用户设备处理。用户网络需能访问 `video.twimg.com` 和 `pbs.twimg.com`；失败只提示重试，不自动回退服务器。
+前后端部署在同一个站点。默认 `XDOWNLOAD_WEB_PROCESSING=browser`：Python 后端解析 X / Instagram 帖子，用户浏览器直连对应平台的媒体 CDN，下载、ZIP 和格式转换在用户设备处理。用户网络需能访问 X 的 `video.twimg.com` / `pbs.twimg.com` 或 Instagram 的 `cdninstagram.com` / `fbcdn.net` 下媒体节点；响应也必须允许跨域读取。失败只提示，不自动回退服务器。
 
 部署前执行 `python scripts/fetch-browser-vendor.py`，从官方 npm 源恢复固定版本依赖；也可在开发电脑执行后将生成的 `web/vendor/` 上传。这些依赖不进入 Git，哈希和来源见 `web/vendor-manifest.json`。转换引擎约 31 MiB，仅首次转换时按需加载；网页、解析请求和运行文件仍会消耗站点流量。
 
 部署配置见 [`deploy/x-download.service`](../deploy/x-download.service) 和 [`deploy/nginx.conf.example`](../deploy/nginx.conf.example)。使用独立系统用户 `xdownload`；源码放在 `/opt/x-download/current`，虚拟环境放在 `/opt/x-download/venv`，用该环境的 pip 安装 `requirements.txt`。FFmpeg 可使用已有系统版本，或单独放入 `/opt/x-download/bin/ffmpeg`。
+
+Instagram 解析使用 yt-dlp 和 Instaloader（版本见 `requirements.txt`），只访问公开帖子，不加载用户账号会话。更新代码时也需同步安装依赖。匿名访问仍可能遇到登录要求或限流；不要依靠重复请求解除限制。Instagram 视频只返回含音轨的 MP4，不在服务器合并分离的音视频。
 
 需要保留服务器处理时，将服务中的环境变量改为 `XDOWNLOAD_WEB_PROCESSING=server` 后重启下载器。此时媒体流量经过服务器，MP3 / GIF 需要本机 FFmpeg。浏览器模式不开放媒体转发接口；桌面版始终在本机处理。
 

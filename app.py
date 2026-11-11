@@ -28,7 +28,7 @@ from waitress import create_server
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 HOME = Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else ROOT
 TOKEN = secrets.token_urlsafe(32)
-VERSION = '1.0.1'
+VERSION = '1.1.0'
 MAX_BYTES = 256 * 1024 * 1024
 TTL = 30 * 60
 POSTS: dict = {}
@@ -59,25 +59,42 @@ def browser_processing():
 def get(url, **kwargs):
     if PROXY:
         kwargs['proxies'] = {'http': PROXY, 'https': PROXY}
-    return requests.get(url, timeout=(12, 35), headers={'User-Agent': 'Dongdong/1.0.1'}, **kwargs)
+    return requests.get(url, timeout=(12, 35), headers={'User-Agent': 'Dongdong/' + VERSION}, **kwargs)
 
 
 def media_url(value):
-    parsed = urlparse(value or '')
-    if parsed.scheme != 'https' or parsed.hostname not in {'pbs.twimg.com', 'video.twimg.com'} or parsed.port not in (None, 443) or parsed.username:
+    try:
+        parsed = urlparse(value or '')
+        host = parsed.hostname or ''
+        allowed = host in {'pbs.twimg.com', 'video.twimg.com'} or re.fullmatch(r'(?:scontent|instagram)[a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:cdninstagram\.com|fbcdn\.net)', host)
+        valid = parsed.scheme == 'https' and allowed and parsed.port in (None, 443) and parsed.username is None and parsed.password is None
+    except ValueError:
+        valid = False
+    if not valid:
         raise UserError('invalidLink')
     return value
 
 
 def post_id(value):
     match = re.search(r'https?://[^\s<>]+', str(value).strip())
-    parsed = urlparse(match.group(0) if match else '')
+    try:
+        parsed = urlparse(match.group(0).rstrip('，。！？,') if match else '')
+        if parsed.username is not None or parsed.password is not None or parsed.port not in (None, 80, 443):
+            raise UserError('invalidLink')
+    except ValueError:
+        raise UserError('invalidLink') from None
+    if parsed.hostname in {'instagram.com', 'www.instagram.com', 'm.instagram.com'}:
+        post = re.fullmatch(r'/(p|reel|reels|tv)/([A-Za-z0-9_-]{5,32})/?', parsed.path)
+        if not post:
+            raise UserError('invalidLink')
+        kind = 'reel' if post[1] == 'reels' else post[1]
+        return 'IG_' + post[2], f'https://www.instagram.com/{kind}/{post[2]}/'
     if parsed.hostname not in {'x.com', 'www.x.com', 'twitter.com', 'www.twitter.com', 'mobile.twitter.com', 'm.twitter.com'}:
         raise UserError('invalidLink')
     status = re.fullmatch(r'/(?:i/web|i|[\w]+)/status/(\d{10,25})(?:/(?:video|photo)/\d+)?/?', parsed.path)
     if not status:
         raise UserError('invalidLink')
-    return status.group(1)
+    return status.group(1), f'https://x.com/i/status/{status[1]}'
 
 
 def dimensions(url, width=0, height=0):
@@ -87,6 +104,9 @@ def dimensions(url, width=0, height=0):
 
 def photo_original(url):
     parsed = urlparse(media_url(url))
+    if parsed.hostname != 'pbs.twimg.com':
+        ext = Path(parsed.path).suffix.lstrip('.').lower()
+        return url, ext if ext in {'jpg', 'jpeg', 'png', 'webp', 'avif'} else 'jpg'
     query = parse_qs(parsed.query)
     ext = Path(parsed.path).suffix.lstrip('.') or query.get('format', ['jpg'])[0]
     path = re.sub(r'\.(jpg|jpeg|png|webp)$', '', parsed.path)
@@ -163,6 +183,102 @@ def from_ytdlp(identifier):
             preview = entry.get('thumbnail')
             media.append({'kind': 'gif' if is_gif else 'video', 'duration': entry.get('duration') or 0, 'preview': media_url(preview) if preview else None, 'formats': formats})
     return {'id': identifier, 'title': info.get('description') or info.get('title') or 'X', 'author': info.get('uploader') or '', 'handle': info.get('uploader_id') or '', 'url': f'https://x.com/i/status/{identifier}', 'media': media, 'source': 'yt-dlp'}
+
+
+def instagram_error(error):
+    detail = str(error).lower()
+    if any(term in detail for term in ('429', 'too many requests', 'rate limit', 'please wait a few minutes')):
+        return 'instagramRateLimited'
+    return 'instagramUnavailable'
+
+
+def from_instagram(identifier, url):
+    """Resolve one public post anonymously; never load browser cookies or a login session."""
+    shortcode = identifier[3:]
+    media, avatar = [], None
+    if '/p/' in url:
+        import instaloader
+        with instaloader.Instaloader(quiet=True, sleep=False, max_connection_attempts=1,
+                                   request_timeout=20, fatal_status_codes=[400, 401, 403, 429],
+                                   iphone_support=False) as loader:
+            if PROXY:
+                loader.context._session.proxies.update({'http': PROXY, 'https': PROXY})
+            post = instaloader.Post.from_shortcode(loader.context, shortcode)
+            # Use the metadata already fetched for the post. Profile properties can
+            # trigger additional profile requests and are deliberately not accessed.
+            node = post._node
+            owner = {**(node.get('user') or {}), **(node.get('owner') or {})}
+            if owner.get('is_private'):
+                raise UserError('instagramUnavailable')
+            handle = owner.get('username') or ''
+            author = owner.get('full_name') or handle
+            title = post.caption or ''
+            if owner.get('profile_pic_url'):
+                try:
+                    avatar = media_url(owner['profile_pic_url'])
+                except UserError:
+                    pass
+            nodes = [edge['node'] for edge in node.get('edge_sidecar_to_children', {}).get('edges', [])] if post.typename == 'GraphSidecar' else [node]
+            if len(nodes) > 20:
+                raise UserError('invalidSelection')
+            raw_nodes = node.get('carousel_media') or [node]
+            for index, item in enumerate(nodes):
+                video = bool(item.get('is_video'))
+                preview = media_url(item.get('display_url') or item.get('display_src'))
+                source = media_url(item.get('video_url')) if video else preview
+                raw = raw_nodes[index] if index < len(raw_nodes) else item
+                variants = raw.get('video_versions') if video else (raw.get('image_versions2') or {}).get('candidates')
+                dimensions = (variants or [{}])[0] or item.get('dimensions') or {}
+                width, height = int(dimensions.get('width') or 0), int(dimensions.get('height') or 0)
+                ext = 'mp4' if video else photo_original(source)[1]
+                media.append({'kind': 'video' if video else 'photo', 'preview': preview,
+                              'has_audio': raw.get('has_audio'),
+                              'duration': raw.get('video_duration') or item.get('video_duration') or 0,
+                              'formats': [{'url': source, 'ext': ext, 'label': 'original',
+                                           'width': width, 'height': height}]})
+        source_name = 'Instaloader'
+    else:
+        import yt_dlp
+        options = {'quiet': True, 'no_warnings': True, 'skip_download': True, 'socket_timeout': 15,
+                   'retries': 0, 'extractor_retries': 0, 'noplaylist': True, 'cachedir': False}
+        if PROXY:
+            options['proxy'] = PROXY
+        with yt_dlp.YoutubeDL(options) as ydl:
+            info = ydl.extract_info(url, download=False)
+        # Instagram's uploader_id is the numeric account ID, not its username.
+        handle = info.get('channel') or ''
+        author = info.get('uploader') or handle
+        title = info.get('description') or info.get('title') or ''
+        for entry in info.get('entries') or [info]:
+            if not entry:
+                continue
+            formats, has_audio = [], None
+            # DASH video-only formats must not be offered as ordinary MP4 files.
+            # yt-dlp orders formats worst-to-best; keep the best complete MP4.
+            for variant in reversed(entry.get('formats') or []):
+                if (variant.get('ext') != 'mp4' or variant.get('protocol') != 'https'
+                        or variant.get('vcodec') == 'none' or variant.get('fragments')
+                        or variant.get('manifest_url') or str(variant.get('format_id', '')).startswith('dash')):
+                    continue
+                has_audio = False if variant.get('acodec') == 'none' else None
+                width, height = int(variant.get('width') or 0), int(variant.get('height') or 0)
+                formats.append({'url': media_url(variant['url']), 'ext': 'mp4',
+                                'label': f'{min(width, height)}p' if width and height else 'original',
+                                'width': width, 'height': height})
+                break
+            if formats:
+                preview = media_url(entry['thumbnail']) if entry.get('thumbnail') else None
+                media.append({'kind': 'video', 'duration': entry.get('duration') or 0,
+                              'has_audio': has_audio, 'preview': preview, 'formats': formats})
+        source_name = 'yt-dlp'
+    profile = f'https://www.instagram.com/{handle}/' if re.fullmatch(r'[A-Za-z0-9_.]{1,30}', handle) else ''
+    return {'id': identifier, 'platform': 'instagram', 'title': title, 'author': author,
+            'handle': handle, 'avatar': avatar, 'profile_url': profile, 'url': url,
+            'media': media, 'source': source_name}
+
+
+def filename_prefix(post):
+    return post['id'] if post.get('platform') == 'instagram' else f'X_{post["id"]}'
 
 
 def public_post(post):
@@ -314,7 +430,7 @@ def payload(job):
             for number, (post, item, fmt, index) in enumerate(selections, 1):
                 check_cancelled(job)
                 update_job(job, message='packing', number=number, total=len(selections), progress=0)
-                with archive.open(f'X_{post["id"]}_{index + 1}.{fmt["ext"]}', 'w', force_zip64=True) as output:
+                with archive.open(f'{filename_prefix(post)}_{index + 1}.{fmt["ext"]}', 'w', force_zip64=True) as output:
                     with closing(retrieve(fmt['url'], job)) as stream:
                         for chunk in stream:
                             output.write(chunk)
@@ -374,7 +490,7 @@ def headers(response):
     response.headers['Referrer-Policy'] = 'no-referrer'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Cache-Control'] = 'public, max-age=86400' if request.endpoint == 'browser_vendor' and response.status_code in (200, 304) else 'no-store'
-    media_sources = ' https://video.twimg.com https://pbs.twimg.com' if browser_processing() else ''
+    media_sources = ' https://video.twimg.com https://pbs.twimg.com https://*.cdninstagram.com https://*.fbcdn.net' if browser_processing() else ''
     wasm = " 'wasm-unsafe-eval'" if browser_processing() else ''
     response.headers['Content-Security-Policy'] = f"default-src 'self'; script-src 'self' 'unsafe-inline'{wasm}; style-src 'self' 'unsafe-inline'; img-src 'self' data:{media_sources}; connect-src 'self'{media_sources}; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'none'"
     return response
@@ -509,7 +625,7 @@ def windows_download():
 @app.post('/api/parse')
 def parse():
     data = request.get_json(silent=True) or {}
-    identifier = post_id(data.get('url', ''))
+    identifier, url = post_id(data.get('url', ''))
     with LOCK:
         cached = POSTS.get(identifier)
     if cached and time.time() - cached['created'] < 900:
@@ -517,16 +633,31 @@ def parse():
     if not PARSE_SLOTS.acquire(blocking=False):
         return jsonify(error='busyError'), 429
     try:
-        try:
-            post = from_fx(identifier)
-        except Exception as primary_error:
+        if identifier.startswith('IG_'):
             try:
-                post = from_ytdlp(identifier)
-            except Exception as fallback_error:
-                result = {'error': 'parseError'}
+                post = from_instagram(identifier, url)
+            except UserError:
+                raise
+            except Exception as error:
+                message = instagram_error(error)
+                result = {'error': message}
                 if not app.config.get('REMOTE'):
-                    result['diagnostics'] = {'primary': str(primary_error)[:700], 'fallback': str(fallback_error)[:700]}
-                return jsonify(result), 400
+                    result['diagnostics'] = {'instagram': type(error).__name__ + ': ' + str(error)[:400]}
+                return jsonify(result), 429 if message == 'instagramRateLimited' else 400
+        else:
+            try:
+                post = from_fx(identifier)
+            except Exception as primary_error:
+                try:
+                    post = from_ytdlp(identifier)
+                except Exception as fallback_error:
+                    result = {'error': 'parseError'}
+                    if not app.config.get('REMOTE'):
+                        result['diagnostics'] = {'primary': str(primary_error)[:700], 'fallback': str(fallback_error)[:700]}
+                    return jsonify(result), 400
+            post['platform'] = 'x'
+            handle = post.get('handle') or ''
+            post['profile_url'] = f'https://x.com/{handle}' if re.fullmatch(r'[A-Za-z0-9_]{1,15}', handle) else ''
         if not post['media']:
             raise UserError('noMedia')
         post['created'] = time.time()
@@ -586,7 +717,7 @@ def create_job():
     if not post or time.time() - post['created'] > TTL:
         raise UserError('expired')
     indices = data.get('indices')
-    if not isinstance(indices, list) or not 1 <= len(indices) <= 10 or len(set(map(str, indices))) != len(indices):
+    if not isinstance(indices, list) or not 1 <= len(indices) <= 20 or len(set(map(str, indices))) != len(indices):
         raise UserError('invalidSelection')
     selections = []
     for index in indices:
@@ -595,7 +726,7 @@ def create_job():
         item = post['media'][index]
         if mode == 'photo' and item['kind'] != 'photo':
             raise UserError('invalidSelection')
-        if mode == 'mp3' and item['kind'] != 'video':
+        if mode == 'mp3' and (item['kind'] != 'video' or item.get('has_audio') is False):
             raise UserError('noAudio')
         if mode == 'gif' and item['kind'] != 'gif':
             raise UserError('invalidSelection')
@@ -614,7 +745,8 @@ def create_job():
     if len(selections) > 1 and mode in {'gif', 'mp3', 'cover'}:
         raise UserError('invalidSelection')
     identifier = secrets.token_hex(16)
-    filename = f'X_{post["id"]}_all.zip' if len(selections) > 1 else f'X_{post["id"]}_{indices[0] + 1}{"_cover" if mode == "cover" else ""}.{mode if mode in {"mp3", "gif"} else selections[0][2]["ext"]}'
+    prefix = filename_prefix(post)
+    filename = f'{prefix}_all.zip' if len(selections) > 1 else f'{prefix}_{indices[0] + 1}{"_cover" if mode == "cover" else ""}.{mode if mode in {"mp3", "gif"} else selections[0][2]["ext"]}'
     job = {'id': identifier, 'status': 'ready', 'progress': 0, 'message': 'ready', 'created': time.time(), 'filename': filename, 'selections': selections, 'mode': mode}
     with LOCK:
         if len(JOBS) >= 100:
@@ -720,7 +852,7 @@ def cleanup_loop():
 
 def main():
     global DESKTOP, WINDOW, PROXY
-    parser = argparse.ArgumentParser(description='Dongdong — free X media downloader')
+    parser = argparse.ArgumentParser(description='Dongdong — free X and Instagram media downloader')
     parser.add_argument('--web', action='store_true', help='Run in the browser instead of a desktop window')
     parser.add_argument('--no-browser', action='store_true', help='Run the web server without opening a browser')
     parser.add_argument('--host', default='127.0.0.1')

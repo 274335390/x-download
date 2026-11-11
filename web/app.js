@@ -55,11 +55,19 @@ async function api(path,data){
   if(!response.ok){if(body.diagnostics)console.warn('Dongdong',body.diagnostics);throw Error(body.error||'serviceError');}return body;
 }
 function duration(seconds){return seconds?Math.floor(seconds/60)+':'+String(Math.floor(seconds%60)).padStart(2,'0'):'';}
-$('#example').onclick=()=>{$('#url').value=EXAMPLE;$('#url').focus();};
-$('#paste').onclick=async()=>{try{$('#url').value=await navigator.clipboard.readText();$('#url').focus();}catch{status('clipboardError');$('#url').focus();}};
+function inputPlatform(){
+  let host='';try{host=new URL($('#url').value.match(/https?:\/\/[^\s<>]+/i)?.[0]||'').hostname;}catch{}
+  const platform=['instagram.com','www.instagram.com','m.instagram.com'].includes(host)?'instagram':['x.com','www.x.com','twitter.com','www.twitter.com','mobile.twitter.com','m.twitter.com'].includes(host)?'x':'';
+  const mark=$('#platform-mark');mark.replaceChildren(platform?el('span','',platform==='instagram'?'Instagram':'X'):icon('link'));mark.title=platform==='instagram'?'Instagram':platform?'X':'';
+  mark.classList.toggle('platform-name',platform==='instagram');
+  mark.setAttribute('aria-label',mark.title);mark.setAttribute('aria-hidden',String(!platform));
+}
+$('#example').onclick=()=>{$('#url').value=EXAMPLE;inputPlatform();$('#url').focus();};
+$('#paste').onclick=async()=>{try{$('#url').value=await navigator.clipboard.readText();inputPlatform();$('#url').focus();}catch{status('clipboardError');$('#url').focus();}};
 const downloadDialog=$('#download-dialog');
 $('#windows-link').onclick=()=>$('#windows-dialog').showModal();
-$('#url').addEventListener('input',()=>status(''));
+$('#url').addEventListener('input',()=>{status('');inputPlatform();});
+inputPlatform();
 $('#download-form').onsubmit=async e=>{
   e.preventDefault();if(busy||activeDownload)return;if(!configLoaded){status('serviceError','error');return;}busy=true;parsing(true);$('#url').disabled=true;status('');
   try{currentPost=await api('parse',{url:$('#url').value});for(const [key,state] of downloads)if(!state.active)downloads.delete(key);render();status('');downloadDialog.showModal();downloadDialog.scrollTop=0;}
@@ -90,10 +98,11 @@ function render(){
   const items=currentPost.media,grid=$('#media-grid');grid.replaceChildren();$('#download-all').hidden=items.length<2;
   bindDownload($('#download-all'),'allZip',{},'download',items.map(item=>item.index),'original',0,currentPost);
   const meta=$('#post-meta');meta.replaceChildren();if(currentPost.avatar){const avatar=el('img','author-avatar');avatar.src=currentPost.avatar;avatar.alt='';avatar.onerror=()=>avatar.remove();meta.append(avatar);}
-  const handle=String(currentPost.handle||'').replace(/^@/,'');
-  const copy=el('div','post-copy'),author=el(/^[A-Za-z0-9_]{1,15}$/.test(handle)?'a':'strong','post-author',currentPost.author||'X'),description=el('p');
-  if(author.tagName==='A'){author.href='https://x.com/'+encodeURIComponent(handle);author.target='_blank';author.rel='noopener noreferrer';}
-  const postLink=el('a','post-link',String(currentPost.title).replace(/\r\n?/g,'\n').replace(/\n[\t ]*\n+/g,'\n'));postLink.href='https://x.com/i/status/'+encodeURIComponent(currentPost.id);postLink.target='_blank';postLink.rel='noopener noreferrer';description.append(postLink);
+  const handle=String(currentPost.handle||'').replace(/^@/,''),instagram=currentPost.platform==='instagram';
+  const validHandle=(instagram?/^[A-Za-z0-9_.]{1,30}$/:/^[A-Za-z0-9_]{1,15}$/).test(handle);
+  const copy=el('div','post-copy'),author=el(validHandle?'a':'strong','post-author',currentPost.author||(instagram?'Instagram':'X')),description=el('p');
+  if(author.tagName==='A'){author.href=(instagram?'https://www.instagram.com/':'https://x.com/')+encodeURIComponent(handle);author.target='_blank';author.rel='noopener noreferrer';}
+  const postLink=el('a','post-link',String(currentPost.title).replace(/\r\n?/g,'\n').replace(/\n[\t ]*\n+/g,'\n'));postLink.href=instagram?'https://www.instagram.com/p/'+encodeURIComponent(currentPost.id.replace(/^IG_/,''))+'/':'https://x.com/i/status/'+encodeURIComponent(currentPost.id);postLink.target='_blank';postLink.rel='noopener noreferrer';description.append(postLink);
   author.dir='auto';description.dir='auto';description.id='post-text';
   const expand=button('expandPost','post-toggle',()=>{const expanded=description.classList.toggle('expanded');expand.setAttribute('aria-expanded',String(expanded));label(expand.querySelector('span'),expanded?'collapsePost':'expandPost');});expand.hidden=true;expand.setAttribute('aria-expanded','false');expand.setAttribute('aria-controls','post-text');copy.append(author,description,expand);meta.append(copy);
   requestAnimationFrame(()=>{if(description.isConnected)expand.hidden=description.scrollHeight<=description.clientHeight+1;});
@@ -104,11 +113,11 @@ function render(){
     thumb.append(el('span','media-badge',item.kind==='gif'?'GIF / MP4':String(f.ext).toUpperCase()));if(item.duration)thumb.append(el('span','duration',duration(item.duration)));
     card.setAttribute('aria-label',(item.kind==='gif'?'GIF':t(item.kind))+' '+(item.index+1));
     card.append(thumb);const info=el('div','media-info'),details=el('div','media-details'),controls=el('div','media-controls');details.append(el('h3','media-title',(item.kind==='gif'?'GIF':t(item.kind))+' '+String(item.index+1).padStart(2,'0')),el('p','media-sub',f.width&&f.height?f.width+' × '+f.height:''));
-    const row=el('div','download-row');item.formats.forEach((fmt,i)=>row.append(downloadButton(item.kind==='photo'?'downloadPhoto':'downloadMp4','primary',[item.index],'original',i,post,{quality:fmt.label==='original'?t('original'):fmt.label},'download')));controls.append(row);
+    const row=el('div','download-row');item.formats.forEach((fmt,i)=>row.append(downloadButton(item.kind==='photo'?'downloadPhoto':fmt.label==='original'?'downloadVideo':'downloadMp4','primary',[item.index],'original',i,post,{quality:fmt.label},'download')));controls.append(row);
     const extras=el('div','extra-actions');
     const conversionUnavailable=!config.desktop&&config.webProcessing==='browser'?'localProcessingUnavailable':'noFfmpeg';
     if(item.kind==='gif'){const convert=downloadButton('convertGif','secondary',[item.index],'gif',0,post);convert.dataset.unavailable=String(!config.conversion);convert.disabled=convert.disabled||!config.conversion;convert.title=config.conversion?'GIF · 640 px · 12 fps · ≤ 120 s':t(conversionUnavailable);extras.append(convert);}
-    if(item.kind==='video'){const convert=downloadButton('convertMp3','secondary',[item.index],'mp3',0,post,{},'audio');convert.dataset.unavailable=String(!config.conversion);convert.disabled=convert.disabled||!config.conversion;if(!config.conversion)convert.title=t(conversionUnavailable);extras.append(convert);}
+    if(item.kind==='video'&&item.has_audio!==false){const convert=downloadButton('convertMp3','secondary',[item.index],'mp3',0,post,{},'audio');convert.dataset.unavailable=String(!config.conversion);convert.disabled=convert.disabled||!config.conversion;if(!config.conversion)convert.title=t(conversionUnavailable);extras.append(convert);}
     if(item.kind!=='photo'&&item.preview)extras.prepend(downloadButton('cover','secondary',[item.index],'cover',0,post,{},'photo'));
     controls.append(extras);info.append(details,controls);card.append(info);grid.append(card);
   });
@@ -125,7 +134,8 @@ async function save(job,transfer){
 async function receiveMedia(source,remaining,onProgress,signal){
   if(signal.aborted)throw Error('cancelled');
   let url;try{url=new URL(source);}catch{throw Error('expired');}
-  if(url.protocol!=='https:'||!['video.twimg.com','pbs.twimg.com'].includes(url.hostname)||url.username||url.password||url.port)throw Error('invalidSelection');
+  const allowedHost=['video.twimg.com','pbs.twimg.com'].includes(url.hostname)||/^(?:scontent|instagram)[a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:cdninstagram\.com|fbcdn\.net)$/.test(url.hostname);
+  if(url.protocol!=='https:'||!allowedHost||url.username||url.password||url.port)throw Error('invalidSelection');
   const controller=new AbortController();
   const cancel=()=>controller.abort();signal.addEventListener('abort',cancel,{once:true});
   let idle=setTimeout(()=>controller.abort(),20000);
@@ -156,7 +166,7 @@ async function saveInBrowser(indices,mode,quality,post,state,id){
   if(browserDownloads>=2)throw Error('busyError');
   browserDownloads++;
   try{
-    const entries=[];let received=0,lastPaint=0;
+    const entries=[],prefix=post.platform==='instagram'?post.id:'X_'+post.id;let received=0,lastPaint=0;
     for(const [position,index] of indices.entries()){
       const item=post.media.find(value=>value.index===index);
       const format=mode==='cover'?item?.cover:item?.formats[indices.length===1?quality:0];
@@ -169,7 +179,7 @@ async function saveInBrowser(indices,mode,quality,post,state,id){
         }else{state.message='receiving';state.values={};}
         if(performance.now()-lastPaint>200){lastPaint=performance.now();paintDownloads(id);}
       },state.controller.signal);
-      received+=blob.size;entries.push({name:'X_'+post.id+'_'+(index+1)+(mode==='cover'?'_cover':'')+'.'+format.ext,blob});
+      received+=blob.size;entries.push({name:prefix+'_'+(index+1)+(mode==='cover'?'_cover':'')+'.'+format.ext,blob});
       state.progress=(position+1)/indices.length*75;state.measured=true;paintDownloads(id);
     }
     let blob=entries[0].blob,filename=entries[0].name;
@@ -177,12 +187,12 @@ async function saveInBrowser(indices,mode,quality,post,state,id){
       if(!window.BrowserMedia)throw Error('localProcessingUnavailable');
       state.message=mode==='mp3'?'convertingMp3':'convertingGif';state.values={};paintDownloads(id);
       blob=await BrowserMedia.convert(blob,mode,percent=>{state.progress=75+Math.min(100,percent)*.2;paintDownloads(id);},state.controller.signal);
-      filename='X_'+post.id+'_'+(indices[0]+1)+'.'+mode;
+      filename=prefix+'_'+(indices[0]+1)+'.'+mode;
     }else if(entries.length>1){
       if(!window.BrowserMedia)throw Error('localProcessingUnavailable');
       state.message='packing';state.values={number:entries.length,total:entries.length};paintDownloads(id);
       blob=await BrowserMedia.pack(entries,percent=>{state.progress=75+Math.min(100,percent)*.2;paintDownloads(id);},state.controller.signal);
-      filename='X_'+post.id+'_all.zip';
+      filename=prefix+'_all.zip';
     }
     if(blob.size>MAX_MEDIA_BYTES)throw Error('sizeError');
     if(state.controller.signal.aborted)throw Error('cancelled');
@@ -237,7 +247,7 @@ function renderLegal(){
   const title=$('#legal-title'),copy=$('#legal-copy');copy.replaceChildren();
   if(legalName==='about'){
     delete title.dataset.i18n;delete title.dataset.values;
-    title.textContent='东东下载'+(config.desktop?' · '+(config.version||'1.0.1'):'');
+    title.textContent='东东下载'+(config.desktop?' · '+(config.version||'1.1.0'):'');
   }else label(title,legalName);
   LOCALES[language].legal[legalName].forEach(text=>copy.append(el('p','',text)));
   if(legalName==='privacy'&&config.desktop)copy.append(label(el('p'),'updatePrivacy'));

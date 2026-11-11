@@ -1,7 +1,15 @@
-# Browser processing dependencies
+# Third-party dependencies
 
 The application's own code is MIT licensed. The following unmodified third-party
 programs retain their respective licenses; the bundled FFmpeg core is **not MIT**.
+
+Instagram photo and carousel metadata is read with [Instaloader 4.16](https://github.com/instaloader/instaloader/tree/v4.16),
+licensed under MIT, copyright 2016–2026 Alexander Graf, André Koch-Kramer and the
+Instaloader contributors. The unmodified package is installed from
+`requirements.txt`; its [license text](licenses/Instaloader-MIT.txt) is included.
+The application creates anonymous sessions only and does not load user cookies.
+
+## Browser processing dependencies
 
 | Component | Pinned version | License | Local license text |
 | --- | --- | --- | --- |
