@@ -94,7 +94,7 @@ python app.py --web
 ## 反馈与许可
 
 - 使用问题或建议：[GitHub Issues](https://github.com/274335390/x-download/issues)。
-- 版权、隐私或其他联系：[sddaspirine@gmail.com](mailto:sddaspirine@gmail.com)。请附问题描述和相关帖子链接，勿发送密码或其他敏感信息。
+- 反馈与联系：[GitHub Issues](https://github.com/274335390/x-download/issues)。公开反馈请勿包含个人邮箱、密码或其他敏感信息。
 - 项目源码采用 [MIT](LICENSE) 许可证；媒体内容和第三方组件保留各自权利及许可。
 
 更多项目：[东东开源](https://dd-oss.com/)。

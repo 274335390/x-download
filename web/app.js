@@ -296,8 +296,6 @@ function renderLegal(){
 }
 function showLegal(name){if(!['about','terms','privacy','disclaimer'].includes(name))return;legalName=name;renderLegal();legalDialog.showModal();legalDialog.scrollTop=0;}
 document.querySelectorAll('[data-legal]').forEach(link=>link.onclick=e=>{e.preventDefault();showLegal(link.dataset.legal);});
-document.querySelector('.legal-links [data-i18n="contact"]').onclick=event=>{event.preventDefault();$('#contact-status').hidden=true;$('#contact-dialog').showModal();};
-$('#copy-email').onclick=async()=>{const note=$('#contact-status');try{await navigator.clipboard.writeText($('#contact-email').value);label(note,'emailCopied');}catch{$('#contact-email').focus();$('#contact-email').select();label(note,'emailCopyFailed');}note.hidden=false;};
 document.querySelectorAll('dialog').forEach(dialog=>{const close=()=>dialog===downloadDialog?requestDownloadClose():dialog.close();dialog.querySelector('.close').onclick=close;dialog.onclick=e=>{if(e.target!==dialog)return;const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close();};});
 const languageDialog=$('#language-dialog');$('#language-button').onclick=()=>languageDialog.showModal();
 LANGUAGES.forEach(([code,name])=>{const node=el('button','',name);node.type='button';node.lang=code;node.dir='auto';node.dataset.language=code;node.onclick=()=>{language=code;try{localStorage.setItem('xdownload-language',code);}catch{}translatePage();languageDialog.close();};$('#language-list').append(node);});
